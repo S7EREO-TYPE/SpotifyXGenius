@@ -12,9 +12,44 @@ const Client = new Genius.Client(process.env.GENIUS_ACCESS_TOKEN);
 // LRCLIB API endpoint
 const LRCLIB_API = 'https://lrclib.net/api';
 
+// Security: Rate limiting configuration
+const requestCounts = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 60; // 60 requests per minute
+
+// Simple rate limiting middleware
+const rateLimiter = (req, res, next) => {
+  const ip = req.ip || req.connection.remoteAddress;
+  const now = Date.now();
+  
+  if (!requestCounts.has(ip)) {
+    requestCounts.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+    return next();
+  }
+  
+  const data = requestCounts.get(ip);
+  
+  if (now > data.resetTime) {
+    data.count = 1;
+    data.resetTime = now + RATE_LIMIT_WINDOW;
+    return next();
+  }
+  
+  if (data.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+  }
+  
+  data.count++;
+  next();
+};
+
 // Middleware
-app.use(cors());
-app.use(express.json());
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  credentials: true
+}));
+app.use(express.json({ limit: '1mb' })); // Limit payload size
+app.use(rateLimiter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
