@@ -18,7 +18,7 @@ const Player: React.FC<PlayerProps> = ({ token, onTrackChange, onPlaybackUpdate,
   useEffect(() => {
     const fetchCurrentTrack = async () => {
       const playbackData = await getPlaybackState(token);
-      
+
       if (playbackData && playbackData.item) {
         const track = {
           name: playbackData.item.name,
@@ -28,11 +28,15 @@ const Player: React.FC<PlayerProps> = ({ token, onTrackChange, onPlaybackUpdate,
           uri: playbackData.item.uri,
           duration: playbackData.item.duration_ms,
         };
-        
-        setCurrentTrack(track);
+
+        // Only update if the track has actually changed
+        if (track.uri !== currentTrack?.uri) {
+          setCurrentTrack(track);
+          onTrackChange(track);
+        }
+
         setIsPlaying(playbackData.is_playing);
-        onTrackChange(track);
-        
+
         // Send playback data to parent (for lyrics sync)
         if (onPlaybackUpdate) {
           onPlaybackUpdate({
@@ -116,7 +120,7 @@ const Player: React.FC<PlayerProps> = ({ token, onTrackChange, onPlaybackUpdate,
   return (
     <div className="player">
       <h2>Now Playing</h2>
-      
+
       {currentTrack ? (
         <div className="current-track">
           {currentTrack.albumArt && (
@@ -143,8 +147,8 @@ const Player: React.FC<PlayerProps> = ({ token, onTrackChange, onPlaybackUpdate,
       {currentTrack && (
         <div className="progress-bar-container">
           <div className="progress-bar">
-            <div 
-              className="progress-fill" 
+            <div
+              className="progress-fill"
               style={{ width: `${((playbackData?.progressMs || 0) / currentTrack.duration) * 100}%` }}
             />
           </div>

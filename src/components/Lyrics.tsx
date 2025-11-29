@@ -187,18 +187,6 @@ const Lyrics: React.FC<LyricsProps> = ({ currentTrack, playbackData }) => {
               </a>
             </div>
           )}
-
-          <div className="implementation-note">
-            <h4>✅ Backend Server Required</h4>
-            <p>
-              To see lyrics, start the backend server:
-            </p>
-            <ol>
-              <li>Open a new terminal</li>
-              <li>Run: <code>cd server && npm start</code></li>
-              <li>Keep the server running while using the app</li>
-            </ol>
-          </div>
         </div>
       ) : (
         <p className="no-lyrics">Play a song to see lyrics</p>

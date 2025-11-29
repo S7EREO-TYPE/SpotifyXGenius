@@ -1,4 +1,6 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') }); // Try server/.env
+require('dotenv').config({ path: path.join(__dirname, '../.env') }); // Try root .env
 const express = require('express');
 const cors = require('cors');
 const Genius = require('genius-lyrics');
@@ -21,24 +23,24 @@ const RATE_LIMIT_MAX_REQUESTS = 60; // 60 requests per minute
 const rateLimiter = (req, res, next) => {
   const ip = req.ip || req.connection.remoteAddress;
   const now = Date.now();
-  
+
   if (!requestCounts.has(ip)) {
     requestCounts.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
     return next();
   }
-  
+
   const data = requestCounts.get(ip);
-  
+
   if (now > data.resetTime) {
     data.count = 1;
     data.resetTime = now + RATE_LIMIT_WINDOW;
     return next();
   }
-  
+
   if (data.count >= RATE_LIMIT_MAX_REQUESTS) {
     return res.status(429).json({ error: 'Too many requests. Please try again later.' });
   }
-  
+
   data.count++;
   next();
 };
@@ -51,6 +53,70 @@ app.use(cors({
 app.use(express.json({ limit: '1mb' })); // Limit payload size
 app.use(rateLimiter);
 
+// Spotify Auth Config
+const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
+const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
+const REDIRECT_URI = process.env.SPOTIFY_REDIRECT_URI || 'http://localhost:5000/auth/callback';
+const querystring = require('querystring');
+
+console.log('Current working directory:', process.cwd());
+console.log('Loading .env from:', require('path').resolve(__dirname, '../.env'));
+console.log('SPOTIFY_CLIENT_ID loaded:', CLIENT_ID ? 'Yes (' + CLIENT_ID.substring(0, 5) + '...)' : 'No');
+console.log('SPOTIFY_REDIRECT_URI:', REDIRECT_URI);
+
+let accessToken = '';
+
+app.get('/auth/login', (req, res) => {
+  if (!CLIENT_ID) {
+    console.error('ERROR: SPOTIFY_CLIENT_ID is missing!');
+    return res.status(500).send('Server Error: SPOTIFY_CLIENT_ID is not configured.');
+  }
+
+  const scope = 'user-read-private user-read-email user-read-playback-state user-modify-playback-state user-read-currently-playing';
+  res.redirect('https://accounts.spotify.com/authorize?' +
+    querystring.stringify({
+      response_type: 'code',
+      client_id: CLIENT_ID,
+      scope: scope,
+      redirect_uri: REDIRECT_URI,
+    }));
+});
+
+app.get('/auth/callback', async (req, res) => {
+  const code = req.query.code || null;
+
+  try {
+    const response = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + (Buffer.from(CLIENT_ID + ':' + CLIENT_SECRET).toString('base64'))
+      },
+      body: new URLSearchParams({
+        code: code,
+        redirect_uri: REDIRECT_URI,
+        grant_type: 'authorization_code'
+      })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      accessToken = data.access_token;
+      res.redirect('http://localhost:3000');
+    } else {
+      res.redirect('/#' + querystring.stringify({ error: 'invalid_token' }));
+    }
+  } catch (error) {
+    console.error('Error in auth callback:', error);
+    res.redirect('/#' + querystring.stringify({ error: 'invalid_token' }));
+  }
+});
+
+app.get('/auth/token', (req, res) => {
+  res.json({ access_token: accessToken });
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ status: 'Server is running!' });
@@ -60,20 +126,20 @@ app.get('/api/health', (req, res) => {
 app.get('/api/search', async (req, res) => {
   try {
     const { artist, title } = req.query;
-    
+
     if (!artist || !title) {
       return res.status(400).json({ error: 'Artist and title are required' });
     }
 
     const query = `${artist} ${title}`;
     const searches = await Client.songs.search(query);
-    
+
     if (searches.length === 0) {
       return res.status(404).json({ error: 'Song not found' });
     }
 
     const song = searches[0];
-    
+
     res.json({
       id: song.id,
       title: song.title,
@@ -91,7 +157,7 @@ app.get('/api/search', async (req, res) => {
 app.get('/api/lyrics', async (req, res) => {
   try {
     const { artist, title, album, duration } = req.query;
-    
+
     if (!artist || !title) {
       return res.status(400).json({ error: 'Artist and title are required' });
     }
@@ -99,16 +165,16 @@ app.get('/api/lyrics', async (req, res) => {
     // Try LRCLIB first for timestamped lyrics
     try {
       const lrcUrl = `${LRCLIB_API}/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}${album ? `&album_name=${encodeURIComponent(album)}` : ''}${duration ? `&duration=${Math.floor(duration / 1000)}` : ''}`;
-      
+
       const lrcResponse = await fetch(lrcUrl);
-      
+
       if (lrcResponse.ok) {
         const lrcData = await lrcResponse.json();
-        
+
         if (lrcData.syncedLyrics) {
           // Parse LRC format
           const parsedLyrics = parseLRC(lrcData.syncedLyrics);
-          
+
           return res.json({
             source: 'lrclib',
             title: lrcData.trackName || title,
@@ -137,14 +203,14 @@ app.get('/api/lyrics', async (req, res) => {
     // Fallback to Genius if LRCLIB doesn't have the song
     const query = `${artist} ${title}`;
     const searches = await Client.songs.search(query);
-    
+
     if (searches.length === 0) {
       return res.status(404).json({ error: 'Song not found' });
     }
 
     const song = searches[0];
     let lyrics = await song.lyrics();
-    
+
     // Remove contributor sections and metadata
     lyrics = lyrics
       .replace(/\d+\s*Contributors?.*?Lyrics/gi, '')
@@ -156,7 +222,7 @@ app.get('/api/lyrics', async (req, res) => {
       .replace(/Embed$/gim, '')
       .replace(/^\s*\n/gm, '\n')
       .trim();
-    
+
     res.json({
       source: 'genius',
       id: song.id,
@@ -173,11 +239,49 @@ app.get('/api/lyrics', async (req, res) => {
   }
 });
 
+// Search for a YouTube video
+app.get('/api/youtube', async (req, res) => {
+  try {
+    const { artist, title } = req.query;
+
+    if (!artist || !title) {
+      return res.status(400).json({ error: 'Artist and title are required' });
+    }
+
+    const query = `${artist} ${title} music video`;
+    const apiKey = process.env.YOUTUBE_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({ error: 'YouTube API key is not configured' });
+    }
+
+    // Reverted to videoCategoryId=10 (Music) or just general search with videoEmbeddable=true
+    const youtubeUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&videoEmbeddable=true&maxResults=1&key=${apiKey}`;
+
+    const response = await fetch(youtubeUrl);
+    const data = await response.json();
+
+    if (data.items && data.items.length > 0) {
+      const video = data.items[0];
+      res.json({
+        videoId: video.id.videoId,
+        title: video.snippet.title,
+        thumbnail: video.snippet.thumbnails.high.url,
+      });
+    } else {
+      res.status(404).json({ error: 'Video not found' });
+    }
+  } catch (error) {
+    console.error('Error searching YouTube:', error);
+    res.status(500).json({ error: 'Failed to search YouTube' });
+  }
+});
+
 // Helper function to parse LRC format
 function parseLRC(lrcText) {
   const lines = lrcText.split('\n');
   const syncedLyrics = [];
-  
+
   lines.forEach(line => {
     // Match [mm:ss.xx] or [mm:ss.xxx] timestamp format
     const match = line.match(/\[(\d+):(\d+)\.(\d+)\](.*)/);
@@ -186,9 +290,9 @@ function parseLRC(lrcText) {
       const seconds = parseInt(match[2]);
       const centiseconds = parseInt(match[3].padEnd(2, '0').substring(0, 2));
       const text = match[4].trim();
-      
+
       const timeMs = (minutes * 60 * 1000) + (seconds * 1000) + (centiseconds * 10);
-      
+
       if (text) {
         syncedLyrics.push({
           time: timeMs,
@@ -197,7 +301,7 @@ function parseLRC(lrcText) {
       }
     }
   });
-  
+
   return syncedLyrics;
 }
 

@@ -1,104 +1,267 @@
-.app {
-  min-height: 100vh;
+:root {
+  --bg-dark: #0f0f0f;
+  --bg-card: rgba(30, 30, 30, 0.6);
+  --bg-card-hover: rgba(40, 40, 40, 0.8);
+  --primary: #1db954;
+  --primary-hover: #1ed760;
+  --text-main: #ffffff;
+  --text-secondary: #b3b3b3;
+  --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --blur: blur(12px);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  overflow: hidden;
+  /* Prevent body scroll, handle in grid */
+  height: 100vh;
+}
+
+.app-container {
+  height: 100vh;
+  width: 100vw;
+  background: radial-gradient(circle at top left, rgba(29, 185, 84, 0.15), transparent 40%),
+    radial-gradient(circle at bottom right, rgba(100, 100, 255, 0.1), transparent 40%);
   display: flex;
   flex-direction: column;
 }
 
+/* Login Screen */
 .login-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
-  padding: 20px;
-}
-
-.login-container h1 {
-  color: white;
-  font-size: 3rem;
-  margin-bottom: 2rem;
+  height: 100%;
   text-align: center;
 }
 
-.login-button {
-  background-color: #1db954;
+.login-btn {
+  background-color: var(--primary);
   color: white;
-  border: none;
-  padding: 15px 40px;
-  font-size: 1.2rem;
-  border-radius: 30px;
-  cursor: pointer;
+  padding: 14px 32px;
+  border-radius: 50px;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 1px;
   transition: all 0.3s ease;
-  font-weight: bold;
+  box-shadow: 0 4px 15px rgba(29, 185, 84, 0.4);
 }
 
-.login-button:hover {
-  background-color: #1ed760;
+.login-btn:hover {
+  background-color: var(--primary-hover);
   transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(29, 185, 84, 0.6);
 }
 
-.main-container {
-  flex: 1;
+/* Header */
+.app-header {
+  height: 60px;
   display: flex;
-  padding: 20px;
-  gap: 20px;
-  max-width: 1400px;
-  margin: 0 auto;
-  width: 100%;
-}
-
-.player-section {
-  flex: 1;
-  background: rgba(0, 0, 0, 0.6);
-  border-radius: 10px;
-  padding: 20px;
-  color: white;
-}
-
-.lyrics-section {
-  flex: 1;
-  background: rgba(0, 0, 0, 0.6);
-  border-radius: 10px;
-  padding: 20px;
-  color: white;
-  overflow-y: auto;
-  max-height: calc(100vh - 40px);
-}
-
-.header {
-  background: rgba(0, 0, 0, 0.8);
-  padding: 15px 20px;
-  color: white;
-  display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: var(--blur);
+  border-bottom: var(--glass-border);
+  z-index: 10;
 }
 
-.header h1 {
-  margin: 0;
-  font-size: 1.5rem;
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--primary);
 }
 
-.logout-button {
-  background-color: #191414;
-  color: white;
-  border: 1px solid #1db954;
-  padding: 10px 20px;
+.controls {
+  display: flex;
+  gap: 10px;
+}
+
+.icon-button {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-secondary);
+  padding: 8px 16px;
   border-radius: 20px;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.icon-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+  border-color: var(--text-main);
+}
+
+.icon-button.active {
+  background: rgba(29, 185, 84, 0.2);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+/* Main Grid Layout */
+.main-grid {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  /* Default: Split 50/50 */
+  gap: 20px;
+  padding: 20px;
+  flex: 1;
+  overflow: hidden;
   transition: all 0.3s ease;
 }
 
-.logout-button:hover {
-  background-color: #1db954;
+.content-grid.no-video {
+  grid-template-columns: 400px 1fr;
+  /* Player fixed width, Lyrics take rest */
 }
 
-@media (max-width: 768px) {
-  .main-container {
-    flex-direction: column;
+/* Left Column (Player + Video) */
+.left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+/* Right Column (Lyrics) */
+.right-column {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Cards */
+.player-card,
+.video-card,
+.lyrics-card {
+  background: var(--bg-card);
+  backdrop-filter: var(--blur);
+  border: var(--glass-border);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--glass-shadow);
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.player-card:hover,
+.lyrics-card:hover {
+  background: var(--bg-card-hover);
+}
+
+.video-card {
+  aspect-ratio: 16/9;
+  padding: 0;
+  /* Video takes full space */
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: black;
+}
+
+.lyrics-card {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* External Links */
+.external-links {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  justify-content: center;
+}
+
+.link-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  color: var(--text-secondary);
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+}
+
+.link-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-main);
+}
+
+.link-btn.genius:hover {
+  color: #ffff64;
+  /* Genius yellow-ish */
+}
+
+.link-btn.youtube:hover {
+  color: #ff0000;
+  /* YouTube red */
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .content-grid {
+    grid-template-columns: 1fr;
+    /* Stack vertically */
+    overflow-y: auto;
   }
-  
-  .login-container h1 {
-    font-size: 2rem;
+
+  .content-grid.no-video {
+    grid-template-columns: 1fr;
+  }
+
+  .left-column,
+  .right-column {
+    overflow: visible;
+  }
+
+  .video-card {
+    order: -1;
+    /* Video on top on mobile */
   }
 }

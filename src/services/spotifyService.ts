@@ -38,6 +38,14 @@ export const getAuthUrl = async (): Promise<string> => {
   const clientId = process.env.REACT_APP_SPOTIFY_CLIENT_ID;
   const redirectUri = process.env.REACT_APP_REDIRECT_URI;
   
+  if (!clientId) {
+    throw new Error('REACT_APP_SPOTIFY_CLIENT_ID is not configured in .env file');
+  }
+  
+  if (!redirectUri) {
+    throw new Error('REACT_APP_REDIRECT_URI is not configured in .env file');
+  }
+  
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = await generateCodeChallenge(codeVerifier);
   
@@ -45,9 +53,9 @@ export const getAuthUrl = async (): Promise<string> => {
   sessionStorage.setItem('code_verifier', codeVerifier);
   
   const params = new URLSearchParams({
-    client_id: clientId!,
+    client_id: clientId,
     response_type: 'code',
-    redirect_uri: redirectUri!,
+    redirect_uri: redirectUri,
     scope: SCOPES,
     code_challenge_method: 'S256',
     code_challenge: codeChallenge,
@@ -66,17 +74,23 @@ export const getAccessTokenFromUrl = async (): Promise<string | null> => {
   
   const codeVerifier = sessionStorage.getItem('code_verifier');
   if (!codeVerifier) {
+    console.error('Code verifier not found in session storage');
     return null;
   }
   
   const clientId = process.env.REACT_APP_SPOTIFY_CLIENT_ID;
   const redirectUri = process.env.REACT_APP_REDIRECT_URI;
   
+  if (!clientId || !redirectUri) {
+    console.error('Spotify credentials not configured');
+    return null;
+  }
+  
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     code: code,
-    redirect_uri: redirectUri!,
-    client_id: clientId!,
+    redirect_uri: redirectUri,
+    client_id: clientId,
     code_verifier: codeVerifier,
   });
   
@@ -91,11 +105,18 @@ export const getAccessTokenFromUrl = async (): Promise<string | null> => {
     
     const data = await response.json();
     
+    if (data.error) {
+      console.error('Spotify token error:', data.error, data.error_description);
+      return null;
+    }
+    
     if (data.access_token) {
       // Store refresh token for later use
       if (data.refresh_token) {
         sessionStorage.setItem('refresh_token', data.refresh_token);
       }
+      // Clean up code verifier
+      sessionStorage.removeItem('code_verifier');
       return data.access_token;
     }
     
@@ -104,6 +125,16 @@ export const getAccessTokenFromUrl = async (): Promise<string | null> => {
     console.error('Error exchanging code for token:', error);
     return null;
   }
+};
+
+// Get stored access token from sessionStorage
+export const getAccessToken = (): string | null => {
+  return sessionStorage.getItem('spotify_access_token');
+};
+
+// Store access token in sessionStorage
+export const setAccessToken = (token: string): void => {
+  sessionStorage.setItem('spotify_access_token', token);
 };
 
 export const getCurrentlyPlaying = async (token: string) => {
